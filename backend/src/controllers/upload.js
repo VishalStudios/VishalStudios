@@ -1,51 +1,62 @@
 import cloudinary, { getCloudinaryConfigState } from "../config/cloudinary.js";
 import fs from "fs/promises";
 
-const getOptimizedDeliveryUrl = (publicId, resourceType) => {
-    const commonOptions = {
-        secure: true,
-        resource_type: resourceType,
-        type: "upload",
-    };
+const getUploadConfigOrThrow = () => {
+    const { isConfigured, missingEnvVars } = getCloudinaryConfigState();
 
-    if (resourceType === "video") {
-        return cloudinary.url(publicId, {
-            ...commonOptions,
-            format: "mp4",
-            transformation: [
-                {
-                    quality: "auto:good",
-                    fetch_format: "auto",
-                    crop: "limit",
-                    width: 1600,
-                },
-            ],
-        });
+    if (!isConfigured) {
+        const error = new Error(`Cloudinary env missing: ${missingEnvVars.join(", ")}`);
+        error.status = 500;
+        throw error;
     }
 
-    return cloudinary.url(publicId, {
-        ...commonOptions,
-        transformation: [
-            {
-                quality: "auto:good",
-                fetch_format: "auto",
-                crop: "limit",
-                width: 2200,
+    return {
+        apiKey: process.env.CLOUDINARY_API_KEY,
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+        folder: "vishal_studios",
+    };
+};
+
+export const createUploadSignature = async (req, res, next) => {
+    try {
+        const { apiKey, cloudName, folder } = getUploadConfigOrThrow();
+        const timestamp = Math.floor(Date.now() / 1000);
+        const resourceType = req.body?.resource_type === "video" ? "video" : "image";
+
+        const paramsToSign = {
+            folder,
+            resource_type: resourceType,
+            timestamp,
+            use_filename: true,
+            unique_filename: true,
+        };
+
+        const signature = cloudinary.utils.api_sign_request(
+            paramsToSign,
+            process.env.CLOUDINARY_API_SECRET
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                apiKey,
+                cloudName,
+                folder,
+                resourceType,
+                signature,
+                timestamp,
+                use_filename: true,
+                unique_filename: true,
             },
-        ],
-    });
+        });
+    } catch (error) {
+        return next(error);
+    }
 };
 
 export const uploadMedia = async (req, res, next) => {
     try {
-        const { isConfigured, missingEnvVars } = getCloudinaryConfigState();
-
-        if (!isConfigured) {
-            return res.status(500).json({
-                success: false,
-                error: `Cloudinary env missing: ${missingEnvVars.join(", ")}`
-            });
-        }
+        getUploadConfigOrThrow();
 
         if (!req.file?.buffer && !req.file?.path) {
             return res.status(400).json({
@@ -83,15 +94,12 @@ export const uploadMedia = async (req, res, next) => {
             await fs.unlink(req.file.path).catch(() => {});
         }
 
-        const optimizedUrl = getOptimizedDeliveryUrl(result.public_id, result.resource_type);
-
         console.log(`[Upload] Success: ${result.secure_url}`);
 
         return res.status(200).json({
             success: true,
             data: {
-                url: optimizedUrl,
-                optimized_url: optimizedUrl,
+                url: result.secure_url,
                 original_url: result.secure_url,
                 public_id: result.public_id,
                 resource_type: result.resource_type,

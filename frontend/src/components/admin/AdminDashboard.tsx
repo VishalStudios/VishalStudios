@@ -231,20 +231,61 @@ export default function AdminDashboard() {
 
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('resource_type', file.type.startsWith('video/') ? 'video' : 'image');
-
-                const response = await fetch(`${apiBaseUrl}/api/cloudinary-upload`, {
+                const resourceType = file.type.startsWith('video/') ? 'video' : 'image';
+                const signatureResponse = await fetch(`${apiBaseUrl}/api/cloudinary-signature`, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ resource_type: resourceType })
                 });
 
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result?.error || 'Cloudinary upload failed');
+                const signatureResult = await signatureResponse.json();
+                if (!signatureResponse.ok) {
+                    throw new Error(signatureResult?.error || 'Cloudinary signature failed');
                 }
-                const publicUrl = result.data.url;
+
+                const uploadResult = await new Promise<any>((resolve, reject) => {
+                    const cloudinaryFormData = new FormData();
+                    cloudinaryFormData.append('file', file);
+                    cloudinaryFormData.append('api_key', signatureResult.data.apiKey);
+                    cloudinaryFormData.append('timestamp', String(signatureResult.data.timestamp));
+                    cloudinaryFormData.append('signature', signatureResult.data.signature);
+                    cloudinaryFormData.append('folder', signatureResult.data.folder);
+                    cloudinaryFormData.append('use_filename', 'true');
+                    cloudinaryFormData.append('unique_filename', 'true');
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open(
+                        'POST',
+                        `https://api.cloudinary.com/v1_1/${signatureResult.data.cloudName}/${signatureResult.data.resourceType}/upload`
+                    );
+
+                    xhr.upload.onprogress = (event) => {
+                        if (!event.lengthComputable) return;
+                        const fileProgress = Math.round((event.loaded / event.total) * 100);
+                        const overallProgress = Math.round(((i + fileProgress / 100) / files.length) * 100);
+                        setUploadProgress(overallProgress);
+                    };
+
+                    xhr.onload = () => {
+                        try {
+                            const parsedResponse = JSON.parse(xhr.responseText);
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                resolve(parsedResponse);
+                                return;
+                            }
+                            reject(new Error(parsedResponse?.error?.message || 'Cloudinary upload failed'));
+                        } catch {
+                            reject(new Error('Cloudinary upload failed'));
+                        }
+                    };
+
+                    xhr.onerror = () => reject(new Error('Cloudinary upload failed'));
+                    xhr.send(cloudinaryFormData);
+                });
+
+                const publicUrl = uploadResult.secure_url;
 
                 const payload = activeTab === 'clients' ? {
                     name: title,
