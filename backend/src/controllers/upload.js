@@ -25,7 +25,6 @@ export const createUploadSignature = async (req, res, next) => {
 
         const paramsToSign = {
             folder,
-            resource_type: resourceType,
             timestamp,
             use_filename: true,
             unique_filename: true,
