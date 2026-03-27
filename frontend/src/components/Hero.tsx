@@ -96,7 +96,7 @@ export default function Hero({ onNavClick }: HeroProps) {
         {/* Scroll Indicator */}
         <button
           onClick={() => onNavClick('services')}
-          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce flex flex-col items-center gap-2 opacity-50 hover:opacity-100 transition-opacity duration-300"
+          className="absolute bottom-4 left-1/2 transform -translate-x-1/2 animate-bounce flex flex-col items-center gap-2 opacity-50 hover:opacity-100 transition-opacity duration-300 md:bottom-5"
         >
           <span className="text-[10px] uppercase tracking-[0.2em] text-gold-200">Scroll</span>
           <ChevronDown className="w-5 h-5 text-gold-400" />
