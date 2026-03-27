@@ -32,7 +32,7 @@ app.use((req, res, next) => {
 app.get("/health", (req, res) => {
     res.status(200).json({
         status: "Online",
-        service: "Vishal Photography Backend",
+        service: "Vishal Studios Backend",
         uptime: process.uptime()
     });
 });
@@ -40,7 +40,7 @@ app.get("/health", (req, res) => {
 app.get("/api/health", (req, res) => {
     res.status(200).json({
         status: "Online",
-        service: "Vishal Photography Backend API",
+        service: "Vishal Studios Backend API",
         uptime: process.uptime()
     });
 });

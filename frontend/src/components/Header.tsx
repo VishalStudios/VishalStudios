@@ -62,7 +62,7 @@ export default function Header({ activeSection, onNavClick }: HeaderProps) {
               <Camera className={`w-6 h-6 ${isScrolled ? 'text-gold-600' : 'text-white'}`} />
             </div>
             <span className={`text-2xl font-serif font-bold tracking-tight ${isScrolled ? 'text-white' : 'text-white'}`}>
-              Vishal<span className="text-gold-600">Photography</span>
+              Vishal<span className="text-gold-600">Studios</span>
             </span>
           </Link>
 
@@ -122,7 +122,7 @@ export default function Header({ activeSection, onNavClick }: HeaderProps) {
                 <Camera className="w-6 h-6" />
               </div>
               <span className="text-2xl font-serif font-bold text-white">
-                Vishal<span className="text-gold-600">Photography</span>
+                Vishal<span className="text-gold-600">Studios</span>
               </span>
             </Link>
             <button
@@ -176,8 +176,8 @@ export default function Header({ activeSection, onNavClick }: HeaderProps) {
                     <Camera className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white uppercase tracking-widest">Vishal Photography</p>
-                    <p className="text-[10px] text-gray-500 uppercase font-medium">Professional Photography</p>
+                    <p className="text-xs font-bold text-white uppercase tracking-widest">Vishal Studios</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-medium">Professional Visual Storytelling</p>
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 italic">"Capturing memories that last forever with a touch of gold."</p>

@@ -7,7 +7,7 @@ const DEFAULT_TESTIMONIALS = [
     name: 'Priya & Rahul',
     event: 'Wedding, Patna',
     rating: 5,
-    text: 'Vishal Photography captured our special day beautifully. Every moment was perfect!',
+    text: 'Vishal Studios captured our special day beautifully. Every moment was perfect!',
     initials: 'PR'
   },
   {

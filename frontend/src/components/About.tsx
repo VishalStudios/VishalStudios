@@ -26,7 +26,7 @@ export default function About() {
 
             <div className="space-y-4 text-base md:text-lg text-gray-600 font-light leading-relaxed max-w-xl">
               <p>
-                At <span className="text-dark-950 font-medium">Vishal Photography</span>, we archive the soul of every moment. Founded on the principles of luxury and storytelling, we've spent over 6 years refining the alchemy of light and emotion.
+                At <span className="text-dark-950 font-medium">Vishal Studios</span>, we archive the soul of every moment. Founded on the principles of luxury and storytelling, we've spent over 6 years refining the alchemy of light and emotion.
               </p>
               <p>
                 Whether it's a wedding vow or the joy of a child's laugh, we deliver high-end visuals that transcend time. We believe in minimal distractions and maximum impact.

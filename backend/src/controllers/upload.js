@@ -1,6 +1,41 @@
 import cloudinary, { getCloudinaryConfigState } from "../config/cloudinary.js";
 import fs from "fs/promises";
 
+const getOptimizedDeliveryUrl = (publicId, resourceType) => {
+    const commonOptions = {
+        secure: true,
+        resource_type: resourceType,
+        type: "upload",
+    };
+
+    if (resourceType === "video") {
+        return cloudinary.url(publicId, {
+            ...commonOptions,
+            format: "mp4",
+            transformation: [
+                {
+                    quality: "auto:good",
+                    fetch_format: "auto",
+                    crop: "limit",
+                    width: 1600,
+                },
+            ],
+        });
+    }
+
+    return cloudinary.url(publicId, {
+        ...commonOptions,
+        transformation: [
+            {
+                quality: "auto:good",
+                fetch_format: "auto",
+                crop: "limit",
+                width: 2200,
+            },
+        ],
+    });
+};
+
 export const uploadMedia = async (req, res, next) => {
     try {
         const { isConfigured, missingEnvVars } = getCloudinaryConfigState();
@@ -48,12 +83,16 @@ export const uploadMedia = async (req, res, next) => {
             await fs.unlink(req.file.path).catch(() => {});
         }
 
+        const optimizedUrl = getOptimizedDeliveryUrl(result.public_id, result.resource_type);
+
         console.log(`[Upload] Success: ${result.secure_url}`);
 
         return res.status(200).json({
             success: true,
             data: {
-                url: result.secure_url,
+                url: optimizedUrl,
+                optimized_url: optimizedUrl,
+                original_url: result.secure_url,
                 public_id: result.public_id,
                 resource_type: result.resource_type,
                 bytes: result.bytes,

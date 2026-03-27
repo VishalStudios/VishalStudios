@@ -95,7 +95,7 @@ export default function Footer() {
 
         <div className="border-t border-white/5 pt-8 mt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-sm font-light">
-            © {currentYear} Vishal Photography. All rights reserved.
+            © {currentYear} Vishal Studios. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <a href="/admin/login" className="text-gray-500 hover:text-gold-500 text-xs transition-colors uppercase tracking-widest">Admin Login</a>
