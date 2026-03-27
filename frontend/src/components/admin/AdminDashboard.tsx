@@ -4,7 +4,8 @@ import { ImageIcon, CheckCircle, AlertCircle, LogOut, MessageSquare, Trash2, Cam
 import { supabase } from '../../lib/supabase';
 
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || '';
-const apiBaseUrl = !rawApiBaseUrl || rawApiBaseUrl.includes('your-backend-url')
+const normalizedApiBaseUrl = rawApiBaseUrl.toLowerCase();
+const apiBaseUrl = !rawApiBaseUrl || normalizedApiBaseUrl.includes('your-backend-url')
     ? ''
     : rawApiBaseUrl.replace(/\/$/, '');
 
