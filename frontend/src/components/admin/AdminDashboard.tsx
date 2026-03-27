@@ -56,6 +56,7 @@ export default function AdminDashboard() {
     });
     const [storageLoading, setStorageLoading] = useState(false);
     const [assetMetadata, setAssetMetadata] = useState<Record<string, { bytes?: number | null; duration?: number | null }>>({});
+    const isGalleryTab = activeTab === 'services';
 
     // Form State
     const [title, setTitle] = useState('');
@@ -610,7 +611,9 @@ export default function AdminDashboard() {
                         <div className="bg-[#0a0a0a] p-6 md:p-10 rounded-[2rem] border border-white/5 shadow-xl space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
-                                    <input type="text" placeholder={activeTab === 'clients' ? "Client Name" : "Title"} className="w-full bg-black/50 border border-white/5 p-4 md:p-5 rounded-2xl text-sm focus:outline-none focus:border-gold-600 transition-all font-bold" value={title} onChange={e => setTitle(e.target.value)} />
+                                    {!isGalleryTab && (
+                                        <input type="text" placeholder={activeTab === 'clients' ? "Client Name" : "Title"} className="w-full bg-black/50 border border-white/5 p-4 md:p-5 rounded-2xl text-sm focus:outline-none focus:border-gold-600 transition-all font-bold" value={title} onChange={e => setTitle(e.target.value)} />
+                                    )}
 
                                     {activeTab === 'packages' && (
                                         <input type="text" placeholder="Price (₹50k - ₹80k)" className="w-full bg-black/50 border border-white/5 p-4 md:p-5 rounded-2xl text-sm focus:outline-none focus:border-gold-600 transition-all font-bold text-gold-500" value={price} onChange={e => setPrice(e.target.value)} />
@@ -623,7 +626,9 @@ export default function AdminDashboard() {
                                         </div>
                                     )}
 
-                                    <textarea placeholder={activeTab === 'clients' ? "Paste Drive Link Here" : activeTab === 'packages' ? "Features (1 per line)" : "Description..."} rows={4} className="w-full bg-black/50 border border-white/5 p-4 md:p-5 rounded-2xl text-sm focus:outline-none focus:border-gold-600 transition-all font-bold resize-none" value={description} onChange={e => setDescription(e.target.value)} />
+                                    {!isGalleryTab && (
+                                        <textarea placeholder={activeTab === 'clients' ? "Paste Drive Link Here" : activeTab === 'packages' ? "Features (1 per line)" : "Description..."} rows={4} className="w-full bg-black/50 border border-white/5 p-4 md:p-5 rounded-2xl text-sm focus:outline-none focus:border-gold-600 transition-all font-bold resize-none" value={description} onChange={e => setDescription(e.target.value)} />
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col justify-center">
