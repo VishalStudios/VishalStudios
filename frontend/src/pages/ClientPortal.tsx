@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, Search, Calendar, ChevronRight, X } from 'lucide-react';
+import { getOptimizedCloudinaryUrl } from '../lib/cloudinary';
 
 export default function ClientPortal() {
     const [clients, setClients] = useState<any[]>([]);
@@ -88,7 +89,7 @@ export default function ClientPortal() {
                                 className="group relative aspect-[4/5] rounded-[2rem] overflow-hidden border border-white/5 cursor-pointer hover:border-gold-600/40 transition-all duration-700"
                             >
                                 <img
-                                    src={client.photo_url}
+                                    src={getOptimizedCloudinaryUrl(client.photo_url, 'image')}
                                     alt={client.name}
                                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                                 />

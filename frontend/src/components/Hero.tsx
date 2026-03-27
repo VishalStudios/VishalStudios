@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Phone, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getOptimizedCloudinaryUrl } from '../lib/cloudinary';
 
 interface HeroProps {
   onNavClick: (section: string) => void;
@@ -43,13 +44,13 @@ export default function Hero({ onNavClick }: HeroProps) {
       >
         {heroContent?.media_type === 'video' ? (
           <video
-            src={heroContent.url}
+            src={getOptimizedCloudinaryUrl(heroContent.url, 'video')}
             className="w-full h-full object-cover scale-110 opacity-70"
             autoPlay muted loop playsInline
           />
         ) : (
           <img
-            src={heroContent?.url || defaultHero}
+            src={heroContent?.url ? getOptimizedCloudinaryUrl(heroContent.url, 'image') : defaultHero}
             alt="Photography background"
             className="w-full h-full object-cover scale-110 opacity-70"
           />

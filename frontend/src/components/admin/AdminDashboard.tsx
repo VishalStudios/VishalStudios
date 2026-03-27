@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ImageIcon, CheckCircle, AlertCircle, LogOut, MessageSquare, Trash2, Camera, Film, Home, Plus, Layers, IndianRupee, Edit, X, Settings, Phone, EyeOff, HardDrive, Gauge } from 'lucide-react';
+import { ImageIcon, CheckCircle, AlertCircle, LogOut, MessageSquare, Trash2, Camera, Film, Home, Plus, Layers, IndianRupee, Edit, X, Settings, Phone, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { getOptimizedCloudinaryUrl } from '../../lib/cloudinary';
 
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || '';
 const normalizedApiBaseUrl = rawApiBaseUrl.toLowerCase();
@@ -29,10 +30,7 @@ const formatBytes = (bytes?: number | null) => {
     return `${value >= 100 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(2)} ${units[unitIndex]}`;
 };
 
-const formatUsagePercent = (value?: number | null) => {
-    if (typeof value !== 'number' || Number.isNaN(value)) return '--';
-    return `${value.toFixed(value >= 10 ? 1 : 2)}%`;
-};
+const TOTAL_STORAGE_BYTES = 10 * 1024 * 1024 * 1024;
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('services');
@@ -419,7 +417,7 @@ export default function AdminDashboard() {
                 const metadataMap = (result?.data || []).reduce((acc: Record<string, { bytes?: number | null; duration?: number | null }>, asset: any) => {
                     if (asset?.url && !asset?.error) {
                         acc[asset.url] = {
-                            bytes: asset.bytes,
+                            bytes: asset.optimizedBytes ?? asset.bytes,
                             duration: asset.duration
                         };
                     }
@@ -443,6 +441,14 @@ export default function AdminDashboard() {
     }, [images, activeTab, category]);
 
     const filteredItems = images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category));
+    const storageUsedBytes = storageStats.usedBytes ?? 0;
+    const storageLimitBytes = storageStats.limitBytes ?? TOTAL_STORAGE_BYTES;
+    const storageRemainingBytes = typeof storageStats.remainingBytes === 'number'
+        ? storageStats.remainingBytes
+        : Math.max(storageLimitBytes - storageUsedBytes, 0);
+    const storagePercent = storageLimitBytes > 0
+        ? Math.min((storageUsedBytes / storageLimitBytes) * 100, 100)
+        : 0;
 
     return (
         <div className="min-h-screen bg-[#050505] text-white font-sans flex flex-col md:flex-row">
@@ -463,6 +469,31 @@ export default function AdminDashboard() {
                         </button>
                     ))}
                     <div className="pt-8 space-y-2 border-t border-white/5 mt-4">
+                        <div className="mx-2 mb-4 rounded-[1.5rem] border border-white/5 bg-white/[0.03] p-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-500">Storage</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                                    Total - {formatBytes(storageLimitBytes)}
+                                </span>
+                            </div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                                <div
+                                    className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-all duration-500"
+                                    style={{ width: `${storageLoading ? 0 : storagePercent}%` }}
+                                />
+                            </div>
+                            <div className="mt-3 flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">Filled</p>
+                                    <p className="text-xs font-black text-white">{storageLoading ? 'Loading...' : formatBytes(storageUsedBytes)}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">Left</p>
+                                    <p className="text-xs font-black text-gold-400">{storageLoading ? 'Loading...' : formatBytes(storageRemainingBytes)}</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <button onClick={() => navigate('/')} className="w-full text-xs p-4 flex items-center gap-4 text-gray-500 hover:text-white uppercase tracking-widest">
                             <Home className="w-4 h-4" /> Live Site
                         </button>
@@ -483,39 +514,6 @@ export default function AdminDashboard() {
                             {status.message}
                         </div>
                     )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-[#0a0a0a] border border-white/5 rounded-[1.5rem] p-5 md:p-6 space-y-3">
-                        <div className="flex items-center gap-3 text-gold-500">
-                            <HardDrive className="w-5 h-5" />
-                            <span className="text-[10px] uppercase tracking-[0.25em] font-black">Storage Filled</span>
-                        </div>
-                        <div className="text-2xl font-black text-white">{storageLoading ? 'Loading...' : formatBytes(storageStats.usedBytes)}</div>
-                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Cloudinary me ab tak itna storage use hua hai</p>
-                    </div>
-
-                    <div className="bg-[#0a0a0a] border border-white/5 rounded-[1.5rem] p-5 md:p-6 space-y-3">
-                        <div className="flex items-center gap-3 text-gold-500">
-                            <Gauge className="w-5 h-5" />
-                            <span className="text-[10px] uppercase tracking-[0.25em] font-black">Storage Left</span>
-                        </div>
-                        <div className="text-2xl font-black text-white">{storageLoading ? 'Loading...' : formatBytes(storageStats.remainingBytes)}</div>
-                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
-                            Total limit: {storageLoading ? 'Loading...' : formatBytes(storageStats.limitBytes)}
-                        </p>
-                    </div>
-
-                    <div className="bg-[#0a0a0a] border border-white/5 rounded-[1.5rem] p-5 md:p-6 space-y-3">
-                        <div className="flex items-center gap-3 text-gold-500">
-                            <ImageIcon className="w-5 h-5" />
-                            <span className="text-[10px] uppercase tracking-[0.25em] font-black">Usage Meter</span>
-                        </div>
-                        <div className="text-2xl font-black text-white">{storageLoading ? 'Loading...' : formatUsagePercent(storageStats.usagePercent)}</div>
-                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
-                            Total uploaded assets: {storageStats.assets ?? filteredItems.length}
-                        </p>
-                    </div>
                 </div>
 
                 {activeTab === 'admin_settings' ? (
@@ -694,7 +692,7 @@ export default function AdminDashboard() {
                                             ) : activeTab === 'clients' ? (
                                                 <div className="w-full h-full">
                                                     <div className="absolute inset-0 flex items-center justify-center bg-black">
-                                                        <img src={item.url} className="w-full h-full object-cover opacity-60" />
+                                                        <img src={getOptimizedCloudinaryUrl(item.url, 'image')} className="w-full h-full object-cover opacity-60" />
                                                     </div>
                                                     <div className="absolute inset-0 p-4 flex flex-col justify-end bg-gradient-to-t from-black to-transparent">
                                                         <h4 className="text-sm font-bold text-white">{item.name}</h4>
@@ -704,11 +702,11 @@ export default function AdminDashboard() {
                                                 </div>
                                             ) : item.media_type === 'video' ? (
                                                 <div className="w-full h-full">
-                                                    <video src={item.url} className="absolute inset-0 w-full h-full object-cover opacity-60" muted />
+                                                    <video src={getOptimizedCloudinaryUrl(item.url, 'video')} className="absolute inset-0 w-full h-full object-cover opacity-60" muted />
                                                     <Film className="w-10 h-10 text-gold-500 opacity-20 relative z-10" />
                                                 </div>
                                             ) : (
-                                                <img src={item.url} className="w-full h-full object-cover opacity-80" />
+                                                <img src={getOptimizedCloudinaryUrl(item.url, 'image')} className="w-full h-full object-cover opacity-80" />
                                             )}
                                         </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Film, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getOptimizedCloudinaryUrl } from '../lib/cloudinary';
 
 const DEFAULT_IMAGES = [
   { url: 'https://images.pexels.com/photos/1024993/pexels-photo-1024993.jpeg?auto=compress&cs=tinysrgb&w=800', category: 'Wedding', title: 'Eternal Vows', media_type: 'image' },
@@ -130,7 +131,7 @@ export default function Gallery({ activeFilter, setActiveFilter }: GalleryProps)
                 {image.media_type === 'video' ? (
                   <div className="relative">
                     <video
-                      src={image.url}
+                      src={getOptimizedCloudinaryUrl(image.url, 'video')}
                       className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000"
                       autoPlay muted loop playsInline
                     />
@@ -140,7 +141,7 @@ export default function Gallery({ activeFilter, setActiveFilter }: GalleryProps)
                   </div>
                 ) : (
                   <img
-                    src={image.url}
+                    src={getOptimizedCloudinaryUrl(image.url, 'image')}
                     alt={image.title}
                     loading="lazy"
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
@@ -197,14 +198,14 @@ export default function Gallery({ activeFilter, setActiveFilter }: GalleryProps)
             <div className="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
               {filteredImages[selectedIndex].media_type === 'video' ? (
                 <video
-                  src={filteredImages[selectedIndex].url}
+                  src={getOptimizedCloudinaryUrl(filteredImages[selectedIndex].url, 'video')}
                   controls
                   autoPlay
                   className="max-h-[80vh] w-auto h-full"
                 />
               ) : (
                 <img
-                  src={filteredImages[selectedIndex].url}
+                  src={getOptimizedCloudinaryUrl(filteredImages[selectedIndex].url, 'image')}
                   alt={filteredImages[selectedIndex].title}
                   className="max-h-[80vh] w-auto h-full object-contain"
                 />

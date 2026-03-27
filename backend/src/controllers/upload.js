@@ -59,6 +59,45 @@ const normalizeStorageUsage = (usageResponse) => {
     };
 };
 
+const buildOptimizedDeliveryUrl = (assetUrl, resourceType = "image") => {
+    const publicId = parseCloudinaryPublicId(assetUrl);
+
+    if (!publicId) {
+        return assetUrl;
+    }
+
+    const transformation =
+        resourceType === "video"
+            ? "f_auto,q_auto:good,vc_auto,br_1200k,w_1280"
+            : "f_auto,q_auto:good,w_1600";
+
+    return cloudinary.url(publicId, {
+        resource_type: resourceType,
+        secure: true,
+        transformation,
+        type: "upload",
+    });
+};
+
+const getRemoteFileSize = async (assetUrl) => {
+    if (!assetUrl) return null;
+
+    try {
+        const response = await fetch(assetUrl, {
+            method: "HEAD",
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const contentLength = response.headers.get("content-length");
+        return contentLength ? Number(contentLength) : null;
+    } catch {
+        return null;
+    }
+};
+
 export const createUploadSignature = async (req, res, next) => {
     try {
         const { apiKey, cloudName, folder } = getUploadConfigOrThrow();
@@ -141,6 +180,8 @@ export const getCloudinaryAssetsMetadata = async (req, res, next) => {
                         resource_type: resourceType,
                         type: "upload",
                     });
+                    const optimizedUrl = buildOptimizedDeliveryUrl(asset.url, resourceType);
+                    const optimizedBytes = await getRemoteFileSize(optimizedUrl);
 
                     return {
                         url: asset.url,
@@ -148,6 +189,8 @@ export const getCloudinaryAssetsMetadata = async (req, res, next) => {
                         duration: resource.duration ?? null,
                         format: resource.format ?? null,
                         height: resource.height ?? null,
+                        optimizedBytes,
+                        optimizedUrl,
                         publicId,
                         resourceType,
                         width: resource.width ?? null,
