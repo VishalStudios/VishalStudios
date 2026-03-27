@@ -60,9 +60,7 @@ const normalizeStorageUsage = (usageResponse) => {
 };
 
 const buildOptimizedDeliveryUrl = (assetUrl, resourceType = "image") => {
-    const publicId = parseCloudinaryPublicId(assetUrl);
-
-    if (!publicId) {
+    if (!assetUrl || !assetUrl.includes("/upload/")) {
         return assetUrl;
     }
 
@@ -71,12 +69,7 @@ const buildOptimizedDeliveryUrl = (assetUrl, resourceType = "image") => {
             ? "f_auto,q_auto:good,vc_auto,br_1200k,w_1280"
             : "f_auto,q_auto:good,w_1600";
 
-    return cloudinary.url(publicId, {
-        resource_type: resourceType,
-        secure: true,
-        transformation,
-        type: "upload",
-    });
+    return assetUrl.replace("/upload/", `/upload/${transformation}/`);
 };
 
 const getRemoteFileSize = async (assetUrl) => {
