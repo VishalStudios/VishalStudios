@@ -1,9 +1,19 @@
 import express from "express";
 import cors from "cors";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import uploadRoutes from "./routes/upload.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.resolve(__dirname, "./uploads");
+
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 app.use(cors({
     origin: "*",

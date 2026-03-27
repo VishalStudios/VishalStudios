@@ -1,4 +1,5 @@
 import cloudinary, { getCloudinaryConfigState } from "../config/cloudinary.js";
+import fs from "fs/promises";
 
 export const uploadMedia = async (req, res, next) => {
     try {
@@ -11,7 +12,7 @@ export const uploadMedia = async (req, res, next) => {
             });
         }
 
-        if (!req.file?.buffer) {
+        if (!req.file?.buffer && !req.file?.path) {
             return res.status(400).json({
                 success: false,
                 error: "No file provided. Please attach a file to the request."
@@ -29,17 +30,23 @@ export const uploadMedia = async (req, res, next) => {
             unique_filename: true,
         };
 
-        const result = await new Promise((resolve, reject) => {
-            const uploadStream = cloudinary.uploader.upload_stream(options, (error, uploadedResult) => {
-                if (error) {
-                    reject(error);
-                    return;
-                }
-                resolve(uploadedResult);
-            });
+        const result = req.file.buffer
+            ? await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(options, (error, uploadedResult) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve(uploadedResult);
+                });
 
-            uploadStream.end(req.file.buffer);
-        });
+                uploadStream.end(req.file.buffer);
+            })
+            : await cloudinary.uploader.upload(req.file.path, options);
+
+        if (req.file.path) {
+            await fs.unlink(req.file.path).catch(() => {});
+        }
 
         console.log(`[Upload] Success: ${result.secure_url}`);
 
