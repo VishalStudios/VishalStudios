@@ -1,0 +1,10 @@
+{
+  "name": "vishal-photography-studio",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build:frontend": "cd frontend && npm run build"
+  }
+}
