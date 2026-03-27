@@ -39,19 +39,6 @@ export default function AdminDashboard() {
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [storageStats, setStorageStats] = useState<{
-        assets: number | null;
-        limitBytes: number | null;
-        remainingBytes: number | null;
-        usedBytes: number | null;
-        usagePercent: number | null;
-    }>({
-        assets: null,
-        limitBytes: null,
-        remainingBytes: null,
-        usedBytes: null,
-        usagePercent: null
-    });
     const [storageLoading, setStorageLoading] = useState(false);
     const [assetMetadata, setAssetMetadata] = useState<Record<string, { bytes?: number | null; duration?: number | null }>>({});
     const isGalleryTab = activeTab === 'services';
@@ -85,7 +72,6 @@ export default function AdminDashboard() {
         if (supabase) {
             fetchImages();
             fetchSettings();
-            fetchStorageStats();
         }
 
         const sect = SECTIONS.find(s => s.id === activeTab);
@@ -153,30 +139,6 @@ export default function AdminDashboard() {
         }
     };
 
-    const fetchStorageStats = async () => {
-        try {
-            setStorageLoading(true);
-            const response = await fetch(`${apiBaseUrl}/api/cloudinary-storage`);
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result?.error || 'Storage data load nahi ho paya.');
-            }
-
-            setStorageStats({
-                assets: result?.data?.assets ?? null,
-                limitBytes: result?.data?.limitBytes ?? null,
-                remainingBytes: result?.data?.remainingBytes ?? null,
-                usedBytes: result?.data?.usedBytes ?? null,
-                usagePercent: result?.data?.usagePercent ?? null
-            });
-        } catch (error) {
-            console.error('Storage stats fetch failed:', error);
-        } finally {
-            setStorageLoading(false);
-        }
-    };
-
     const handleSaveSettings = async () => {
         if (!supabase) return;
         setUploading(true);
@@ -212,7 +174,6 @@ export default function AdminDashboard() {
             if (dbError) throw dbError;
             setStatus({ type: 'success', message: 'Hogaya! Delete ho chuka hai.' });
             fetchImages();
-            fetchStorageStats();
         } catch (error: any) {
             setStatus({ type: 'error', message: error.message });
         }
@@ -273,7 +234,6 @@ export default function AdminDashboard() {
             setStatus({ type: 'success', message: 'Hogaya!' });
             resetForm();
             fetchImages();
-            fetchStorageStats();
         } catch (error: any) {
             setStatus({ type: 'error', message: error.message });
         } finally {
@@ -372,7 +332,6 @@ export default function AdminDashboard() {
             setStatus({ type: 'success', message: 'Hogaya!' });
             resetForm();
             fetchImages();
-            fetchStorageStats();
         } catch (error: any) {
             setStatus({ type: 'error', message: error.message });
         } finally {
@@ -382,16 +341,16 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        const visibleItems = images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category));
-        const mediaAssets = visibleItems
+        const mediaAssets = images
             .filter(item => item.url)
             .map(item => ({
-                resource_type: activeTab === 'clients' ? 'image' : item.media_type === 'video' ? 'video' : 'image',
+                resource_type: item.isClient ? 'image' : item.media_type === 'video' ? 'video' : 'image',
                 url: item.url
             }));
 
         if (mediaAssets.length === 0) {
             setAssetMetadata({});
+            setStorageLoading(false);
             return;
         }
 
@@ -399,6 +358,7 @@ export default function AdminDashboard() {
 
         const fetchAssetMetadata = async () => {
             try {
+                setStorageLoading(true);
                 const response = await fetch(`${apiBaseUrl}/api/cloudinary-assets-metadata`, {
                     method: 'POST',
                     headers: {
@@ -430,6 +390,10 @@ export default function AdminDashboard() {
                     console.error('Asset metadata fetch failed:', error);
                     setAssetMetadata({});
                 }
+            } finally {
+                if (!isCancelled) {
+                    setStorageLoading(false);
+                }
             }
         };
 
@@ -438,14 +402,13 @@ export default function AdminDashboard() {
         return () => {
             isCancelled = true;
         };
-    }, [images, activeTab, category]);
+    }, [images]);
 
     const filteredItems = images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category));
-    const storageUsedBytes = storageStats.usedBytes ?? 0;
-    const storageLimitBytes = storageStats.limitBytes ?? TOTAL_STORAGE_BYTES;
-    const storageRemainingBytes = typeof storageStats.remainingBytes === 'number'
-        ? storageStats.remainingBytes
-        : Math.max(storageLimitBytes - storageUsedBytes, 0);
+    const totalTrackedBytes = Object.values(assetMetadata).reduce((sum, asset) => sum + (asset.bytes ?? 0), 0);
+    const storageUsedBytes = totalTrackedBytes;
+    const storageLimitBytes = TOTAL_STORAGE_BYTES;
+    const storageRemainingBytes = Math.max(storageLimitBytes - storageUsedBytes, 0);
     const storagePercent = storageLimitBytes > 0
         ? Math.min((storageUsedBytes / storageLimitBytes) * 100, 100)
         : 0;
