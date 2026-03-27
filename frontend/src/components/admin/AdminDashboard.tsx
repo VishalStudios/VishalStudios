@@ -127,9 +127,13 @@ export default function AdminDashboard() {
         setUploading(true);
         setStatus(null);
         try {
+            if (!siteSettings.admin_id.trim() || !siteSettings.admin_password.trim()) {
+                throw new Error('Admin username aur password dono fill karna zaroori hai.');
+            }
+
             const { error } = await supabase.from('site_settings').upsert({ id: 1, ...siteSettings });
             if (error) throw error;
-            setStatus({ type: 'success', message: 'Settings saved ho gayi!' });
+            setStatus({ type: 'success', message: 'Settings saved ho gayi! Ab login isi latest ID/password se hoga.' });
         } catch (err: any) {
             setStatus({ type: 'error', message: err.message });
         } finally {

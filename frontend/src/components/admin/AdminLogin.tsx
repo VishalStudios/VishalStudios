@@ -14,38 +14,36 @@ export default function AdminLogin() {
         setError('');
 
         try {
-            console.log('Attempting login with:', username);
-            // Fetch credentials from Supabase
+            if (!supabase) {
+                throw new Error('Settings backend connect nahi hai.');
+            }
+
             const { data, error: dbError } = await supabase
                 .from('site_settings')
                 .select('admin_id, admin_password')
                 .eq('id', 1)
                 .maybeSingle();
 
-            if (dbError) console.error('Supabase error:', dbError);
-            console.log('Database returned:', data);
+            if (dbError) {
+                throw dbError;
+            }
 
-            // Accepted credentials (either from DB or hardcoded fallback)
-            const isMatch = (username === (data?.admin_id || 'vishalriya26') && password === (data?.admin_password || 'Vishalriya26')) ||
-                (username === 'vishalriya26' && password === 'Vishalriya26');
+            if (!data?.admin_id || !data?.admin_password) {
+                setError('Admin credentials abhi settings me save nahi hue hain.');
+                return;
+            }
+
+            const isMatch = username === data.admin_id && password === data.admin_password;
 
             if (isMatch) {
-                console.log('Login successful!');
                 localStorage.setItem('adminLoggedIn', 'true');
                 navigate('/admin/dashboard');
             } else {
-                console.warn('Credential mismatch. Input:', username, 'Expected (DB):', data?.admin_id);
                 setError('Invalid credentials');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Fatal login error:', err);
-            // Absolute fallback
-            if (username === 'vishalriya26' && password === 'Vishalriya26') {
-                localStorage.setItem('adminLoggedIn', 'true');
-                navigate('/admin/dashboard');
-            } else {
-                setError('Login failed. Please try again.');
-            }
+            setError(err?.message || 'Login failed. Please try again.');
         }
     };
 
