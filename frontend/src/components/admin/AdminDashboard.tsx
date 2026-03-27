@@ -236,8 +236,10 @@ export default function AdminDashboard() {
                     body: formData
                 });
 
-                if (!response.ok) throw new Error('Cloudinary upload failed');
                 const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result?.error || 'Cloudinary upload failed');
+                }
                 const publicUrl = result.data.url;
 
                 const payload = activeTab === 'clients' ? {

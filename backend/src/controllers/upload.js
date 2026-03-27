@@ -1,7 +1,16 @@
-import cloudinary from "../config/cloudinary.js";
+import cloudinary, { getCloudinaryConfigState } from "../config/cloudinary.js";
 
 export const uploadMedia = async (req, res, next) => {
     try {
+        const { isConfigured, missingEnvVars } = getCloudinaryConfigState();
+
+        if (!isConfigured) {
+            return res.status(500).json({
+                success: false,
+                error: `Cloudinary env missing: ${missingEnvVars.join(", ")}`
+            });
+        }
+
         if (!req.file?.buffer) {
             return res.status(400).json({
                 success: false,
@@ -47,6 +56,6 @@ export const uploadMedia = async (req, res, next) => {
 
     } catch (error) {
         console.error(`[Upload Service Error]`, error);
-        next(error); // Pass to global error handler
+        return next(error);
     }
 };
