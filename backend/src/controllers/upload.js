@@ -77,11 +77,21 @@ const getRemoteFileSize = async (assetUrl) => {
 
     try {
         const response = await fetch(assetUrl, {
-            method: "HEAD",
+            method: "GET",
+            headers: {
+                Range: "bytes=0-0",
+            },
         });
 
         if (!response.ok) {
             return null;
+        }
+
+        const contentRange = response.headers.get("content-range");
+        const rangeMatch = contentRange?.match(/\/(\d+)$/);
+
+        if (rangeMatch?.[1]) {
+            return Number(rangeMatch[1]);
         }
 
         const contentLength = response.headers.get("content-length");
