@@ -17,6 +17,48 @@ const getUploadConfigOrThrow = () => {
     };
 };
 
+const parseCloudinaryPublicId = (assetUrl) => {
+    if (!assetUrl) return null;
+
+    try {
+        const { pathname } = new URL(assetUrl);
+        const uploadMatch = pathname.match(/\/(?:image|video|raw)\/upload\/(?:v\d+\/)?(.+)$/i);
+
+        if (!uploadMatch?.[1]) {
+            return null;
+        }
+
+        return uploadMatch[1].replace(/\.[^/.]+$/, "");
+    } catch {
+        return null;
+    }
+};
+
+const normalizeStorageUsage = (usageResponse) => {
+    const storageDetails = usageResponse?.storage || {};
+    const usedBytes =
+        storageDetails.usage ??
+        storageDetails.used ??
+        storageDetails.bytes ??
+        usageResponse?.storage_usage ??
+        0;
+    const limitBytes =
+        storageDetails.limit ??
+        storageDetails.allowed ??
+        usageResponse?.storage_limit ??
+        null;
+
+    return {
+        usedBytes,
+        limitBytes,
+        remainingBytes: typeof limitBytes === "number" ? Math.max(limitBytes - usedBytes, 0) : null,
+        usagePercent: typeof limitBytes === "number" && limitBytes > 0
+            ? Number(((usedBytes / limitBytes) * 100).toFixed(2))
+            : null,
+        assets: usageResponse?.resources ?? usageResponse?.objects ?? null,
+    };
+};
+
 export const createUploadSignature = async (req, res, next) => {
     try {
         const { apiKey, cloudName, folder } = getUploadConfigOrThrow();
@@ -47,6 +89,81 @@ export const createUploadSignature = async (req, res, next) => {
                 use_filename: true,
                 unique_filename: true,
             },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+export const getCloudinaryStorageUsage = async (req, res, next) => {
+    try {
+        getUploadConfigOrThrow();
+
+        const usageResponse = await cloudinary.api.usage();
+        const normalizedUsage = normalizeStorageUsage(usageResponse);
+
+        return res.status(200).json({
+            success: true,
+            data: normalizedUsage,
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+export const getCloudinaryAssetsMetadata = async (req, res, next) => {
+    try {
+        getUploadConfigOrThrow();
+
+        const assets = Array.isArray(req.body?.assets) ? req.body.assets.slice(0, 100) : [];
+
+        if (assets.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: "Assets list required hai.",
+            });
+        }
+
+        const results = await Promise.all(
+            assets.map(async (asset) => {
+                const resourceType = asset?.resource_type === "video" ? "video" : "image";
+                const publicId = parseCloudinaryPublicId(asset?.url);
+
+                if (!publicId) {
+                    return {
+                        url: asset?.url,
+                        error: "Invalid Cloudinary URL",
+                    };
+                }
+
+                try {
+                    const resource = await cloudinary.api.resource(publicId, {
+                        resource_type: resourceType,
+                        type: "upload",
+                    });
+
+                    return {
+                        url: asset.url,
+                        bytes: resource.bytes ?? null,
+                        duration: resource.duration ?? null,
+                        format: resource.format ?? null,
+                        height: resource.height ?? null,
+                        publicId,
+                        resourceType,
+                        width: resource.width ?? null,
+                    };
+                } catch (resourceError) {
+                    return {
+                        url: asset?.url,
+                        error: resourceError?.message || "Metadata fetch failed",
+                    };
+                }
+            })
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: results,
         });
     } catch (error) {
         return next(error);

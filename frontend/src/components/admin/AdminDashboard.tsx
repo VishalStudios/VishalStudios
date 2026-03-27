@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ImageIcon, CheckCircle, AlertCircle, LogOut, MessageSquare, Trash2, Camera, Film, Home, Plus, Layers, IndianRupee, Edit, X, Settings, Phone, EyeOff } from 'lucide-react';
+import { ImageIcon, CheckCircle, AlertCircle, LogOut, MessageSquare, Trash2, Camera, Film, Home, Plus, Layers, IndianRupee, Edit, X, Settings, Phone, EyeOff, HardDrive, Gauge } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || '';
@@ -18,6 +18,22 @@ const SECTIONS = [
     { id: 'admin_settings', name: 'Settings', icon: Settings, categories: ['Website Settings'] },
 ];
 
+const formatBytes = (bytes?: number | null) => {
+    if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) return '--';
+    if (bytes === 0) return '0 B';
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    const value = bytes / Math.pow(1024, unitIndex);
+
+    return `${value >= 100 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(2)} ${units[unitIndex]}`;
+};
+
+const formatUsagePercent = (value?: number | null) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+    return `${value.toFixed(value >= 10 ? 1 : 2)}%`;
+};
+
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('services');
     const [uploading, setUploading] = useState(false);
@@ -25,6 +41,21 @@ export default function AdminDashboard() {
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [storageStats, setStorageStats] = useState<{
+        assets: number | null;
+        limitBytes: number | null;
+        remainingBytes: number | null;
+        usedBytes: number | null;
+        usagePercent: number | null;
+    }>({
+        assets: null,
+        limitBytes: null,
+        remainingBytes: null,
+        usedBytes: null,
+        usagePercent: null
+    });
+    const [storageLoading, setStorageLoading] = useState(false);
+    const [assetMetadata, setAssetMetadata] = useState<Record<string, { bytes?: number | null; duration?: number | null }>>({});
 
     // Form State
     const [title, setTitle] = useState('');
@@ -55,6 +86,7 @@ export default function AdminDashboard() {
         if (supabase) {
             fetchImages();
             fetchSettings();
+            fetchStorageStats();
         }
 
         const sect = SECTIONS.find(s => s.id === activeTab);
@@ -122,6 +154,30 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchStorageStats = async () => {
+        try {
+            setStorageLoading(true);
+            const response = await fetch(`${apiBaseUrl}/api/cloudinary-storage`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result?.error || 'Storage data load nahi ho paya.');
+            }
+
+            setStorageStats({
+                assets: result?.data?.assets ?? null,
+                limitBytes: result?.data?.limitBytes ?? null,
+                remainingBytes: result?.data?.remainingBytes ?? null,
+                usedBytes: result?.data?.usedBytes ?? null,
+                usagePercent: result?.data?.usagePercent ?? null
+            });
+        } catch (error) {
+            console.error('Storage stats fetch failed:', error);
+        } finally {
+            setStorageLoading(false);
+        }
+    };
+
     const handleSaveSettings = async () => {
         if (!supabase) return;
         setUploading(true);
@@ -157,6 +213,7 @@ export default function AdminDashboard() {
             if (dbError) throw dbError;
             setStatus({ type: 'success', message: 'Hogaya! Delete ho chuka hai.' });
             fetchImages();
+            fetchStorageStats();
         } catch (error: any) {
             setStatus({ type: 'error', message: error.message });
         }
@@ -217,6 +274,7 @@ export default function AdminDashboard() {
             setStatus({ type: 'success', message: 'Hogaya!' });
             resetForm();
             fetchImages();
+            fetchStorageStats();
         } catch (error: any) {
             setStatus({ type: 'error', message: error.message });
         } finally {
@@ -315,6 +373,7 @@ export default function AdminDashboard() {
             setStatus({ type: 'success', message: 'Hogaya!' });
             resetForm();
             fetchImages();
+            fetchStorageStats();
         } catch (error: any) {
             setStatus({ type: 'error', message: error.message });
         } finally {
@@ -322,6 +381,67 @@ export default function AdminDashboard() {
             setUploadProgress(0);
         }
     };
+
+    useEffect(() => {
+        const visibleItems = images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category));
+        const mediaAssets = visibleItems
+            .filter(item => item.url)
+            .map(item => ({
+                resource_type: activeTab === 'clients' ? 'image' : item.media_type === 'video' ? 'video' : 'image',
+                url: item.url
+            }));
+
+        if (mediaAssets.length === 0) {
+            setAssetMetadata({});
+            return;
+        }
+
+        let isCancelled = false;
+
+        const fetchAssetMetadata = async () => {
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/cloudinary-assets-metadata`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ assets: mediaAssets })
+                });
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result?.error || 'Media metadata load nahi ho paya.');
+                }
+
+                if (isCancelled) return;
+
+                const metadataMap = (result?.data || []).reduce((acc: Record<string, { bytes?: number | null; duration?: number | null }>, asset: any) => {
+                    if (asset?.url && !asset?.error) {
+                        acc[asset.url] = {
+                            bytes: asset.bytes,
+                            duration: asset.duration
+                        };
+                    }
+                    return acc;
+                }, {});
+
+                setAssetMetadata(metadataMap);
+            } catch (error) {
+                if (!isCancelled) {
+                    console.error('Asset metadata fetch failed:', error);
+                    setAssetMetadata({});
+                }
+            }
+        };
+
+        fetchAssetMetadata();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [images, activeTab, category]);
+
+    const filteredItems = images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category));
 
     return (
         <div className="min-h-screen bg-[#050505] text-white font-sans flex flex-col md:flex-row">
@@ -362,6 +482,39 @@ export default function AdminDashboard() {
                             {status.message}
                         </div>
                     )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-[#0a0a0a] border border-white/5 rounded-[1.5rem] p-5 md:p-6 space-y-3">
+                        <div className="flex items-center gap-3 text-gold-500">
+                            <HardDrive className="w-5 h-5" />
+                            <span className="text-[10px] uppercase tracking-[0.25em] font-black">Storage Filled</span>
+                        </div>
+                        <div className="text-2xl font-black text-white">{storageLoading ? 'Loading...' : formatBytes(storageStats.usedBytes)}</div>
+                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Cloudinary me ab tak itna storage use hua hai</p>
+                    </div>
+
+                    <div className="bg-[#0a0a0a] border border-white/5 rounded-[1.5rem] p-5 md:p-6 space-y-3">
+                        <div className="flex items-center gap-3 text-gold-500">
+                            <Gauge className="w-5 h-5" />
+                            <span className="text-[10px] uppercase tracking-[0.25em] font-black">Storage Left</span>
+                        </div>
+                        <div className="text-2xl font-black text-white">{storageLoading ? 'Loading...' : formatBytes(storageStats.remainingBytes)}</div>
+                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
+                            Total limit: {storageLoading ? 'Loading...' : formatBytes(storageStats.limitBytes)}
+                        </p>
+                    </div>
+
+                    <div className="bg-[#0a0a0a] border border-white/5 rounded-[1.5rem] p-5 md:p-6 space-y-3">
+                        <div className="flex items-center gap-3 text-gold-500">
+                            <ImageIcon className="w-5 h-5" />
+                            <span className="text-[10px] uppercase tracking-[0.25em] font-black">Usage Meter</span>
+                        </div>
+                        <div className="text-2xl font-black text-white">{storageLoading ? 'Loading...' : formatUsagePercent(storageStats.usagePercent)}</div>
+                        <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
+                            Total uploaded assets: {storageStats.assets ?? filteredItems.length}
+                        </p>
+                    </div>
                 </div>
 
                 {activeTab === 'admin_settings' ? (
@@ -515,13 +668,18 @@ export default function AdminDashboard() {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between border-b border-white/5 pb-4">
                                 <h3 className="text-lg font-serif font-bold uppercase tracking-widest">Recently Added</h3>
-                                <span className="text-[10px] font-bold text-gray-500 uppercase bg-white/5 px-4 py-1 rounded-full">Total: {images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category)).length}</span>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase bg-white/5 px-4 py-1 rounded-full">Total: {filteredItems.length}</span>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                                {images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category)).map((item) => (
+                                {filteredItems.map((item) => (
                                     <div key={item.id} className="group relative bg-[#0a0a0a] rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/5 hover:border-gold-600/30 transition-all">
                                         <div className="aspect-[4/5] relative bg-black flex flex-col items-center justify-center p-6 text-center">
+                                            {!!item.url && (
+                                                <div className="absolute left-3 top-3 z-10 rounded-full bg-black/80 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gold-300 border border-white/10">
+                                                    {formatBytes(assetMetadata[item.url]?.bytes)}
+                                                </div>
+                                            )}
                                             {activeTab === 'packages' ? (
                                                 <div className="space-y-3">
                                                     <IndianRupee className="w-10 h-10 text-gold-500 mx-auto" />
@@ -561,7 +719,7 @@ export default function AdminDashboard() {
                                 ))}
                             </div>
 
-                            {images.filter(i => (activeTab === 'clients' ? i.isClient : i.section === activeTab && i.category === category)).length === 0 && (
+                            {filteredItems.length === 0 && (
                                 <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[2rem]">
                                     <p className="text-gray-800 font-black uppercase tracking-[0.3em] text-[10px] italic">No items found.</p>
                                 </div>
