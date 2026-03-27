@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { ImageIcon, CheckCircle, AlertCircle, LogOut, MessageSquare, Trash2, Camera, Film, Home, Plus, Layers, IndianRupee, Edit, X, Settings, Phone, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || '';
+const apiBaseUrl = !rawApiBaseUrl || rawApiBaseUrl.includes('your-backend-url')
+    ? ''
+    : rawApiBaseUrl.replace(/\/$/, '');
 
 const SECTIONS = [
     { id: 'hero', name: 'Banner', icon: ImageIcon, categories: ['Main Banner'] },
